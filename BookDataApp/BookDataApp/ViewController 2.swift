@@ -4,12 +4,38 @@
 //
 //  Created by 유태호 on 12/26/24.
 //
-
+/*
 import UIKit
 import SnapKit
 
+// MARK: - Models
+struct BookSearchResponse: Codable {
+    let documents: [Book]
+    let meta: Meta
+}
+
+struct Book: Codable {
+    let authors: [String]
+    let contents: String
+    let datetime: String
+    let isbn: String
+    let price: Int
+    let publisher: String
+    let sale_price: Int
+    let status: String
+    let thumbnail: String
+    let title: String
+    let translators: [String]
+    let url: String
+}
+
+struct Meta: Codable {
+    let is_end: Bool
+    let pageable_count: Int
+    let total_count: Int
+}
+
 // MARK: - ViewController (TabBarController)
-/// 앱의 메인 탭바 컨트롤러
 class ViewController: UITabBarController {
     
     override func viewDidLoad() {
@@ -17,9 +43,8 @@ class ViewController: UITabBarController {
         setupTabBar()
     }
     
-    /// 탭바 설정을 위한 메서드
     private func setupTabBar() {
-        // 첫 번째 탭 - 검색 화면 설정
+        // 첫 번째 탭 - 검색 화면
         let searchVC = BookSearchViewController()
         let searchNav = UINavigationController(rootViewController: searchVC)
         searchNav.tabBarItem = UITabBarItem(
@@ -28,7 +53,7 @@ class ViewController: UITabBarController {
             selectedImage: UIImage(systemName: "magnifyingglass.fill")
         )
         
-        // 두 번째 탭 - 북마크 화면 설정
+        // 두 번째 탭 - 북마크 화면
         let bookmarkVC = BookmarkViewController()
         let bookmarkNav = UINavigationController(rootViewController: bookmarkVC)
         bookmarkNav.tabBarItem = UITabBarItem(
@@ -37,7 +62,7 @@ class ViewController: UITabBarController {
             selectedImage: UIImage(systemName: "bookmark.fill")
         )
         
-        // 탭바 컨트롤러 기본 설정
+        // 탭바 컨트롤러 설정
         self.viewControllers = [searchNav, bookmarkNav]
         self.tabBar.tintColor = .systemBlue
         self.tabBar.backgroundColor = .white
@@ -45,14 +70,13 @@ class ViewController: UITabBarController {
 }
 
 // MARK: - BookSearchViewController
-/// 책 검색 화면 뷰 컨트롤러
 class BookSearchViewController: UIViewController {
     
     // MARK: - Properties
-    /// 검색 화면의 비즈니스 로직을 처리하는 뷰모델
-    private let viewModel = BookSearchViewModel()
+    private var books: [Book] = []
+    private let apiKey = "ff02cd54f624b6cfc75f5477a8eb84ed"
     
-    /// 검색바 UI 컴포넌트
+    /// 검색바
     private let searchBar: UISearchBar = {
         let searchBar = UISearchBar()
         searchBar.placeholder = "검색할 책 제목을 입력해주세요"
@@ -69,13 +93,13 @@ class BookSearchViewController: UIViewController {
         return label
     }()
     
-    /// 필터 컨테이너 뷰
+    /// 컬러 필터 컨테이너 뷰
     private let filterContainerView: UIView = {
         let view = UIView()
         return view
     }()
     
-    /// 색상 필터 뷰들
+    /// 컬러 필터 뷰들
     private let redFilterView = UIView()
     private let orangeFilterView = UIView()
     private let yellowFilterView = UIView()
@@ -89,7 +113,7 @@ class BookSearchViewController: UIViewController {
         return label
     }()
     
-    /// 검색 결과를 표시하는 테이블뷰
+    /// 검색 결과 테이블뷰
     private let bookListTableView: UITableView = {
         let tableView = UITableView()
         tableView.backgroundColor = .white
@@ -106,33 +130,22 @@ class BookSearchViewController: UIViewController {
         super.viewDidLoad()
         configureUI()
         setupTableView()
-        setupBindings()
         searchBar.delegate = self
     }
     
-    // MARK: - Setup Methods
-    /// 뷰모델과 뷰의 바인딩 설정
-    private func setupBindings() {
-        viewModel.onBooksUpdated = { [weak self] in
-            self?.bookListTableView.reloadData()
-        }
-    }
-    
-    /// UI 구성을 위한 메서드
+    // MARK: - UI Configuration
     private func configureUI() {
         setupBackground()
         setupComponents()
         setupConstraints()
     }
     
-    /// 배경 설정
     private func setupBackground() {
         view.backgroundColor = .white
     }
     
-    /// UI 컴포넌트 초기 설정
     private func setupComponents() {
-        // 필터 뷰 설정
+        // 컬러 필터 설정
         [redFilterView, orangeFilterView, yellowFilterView, greenFilterView].forEach {
             $0.layer.cornerRadius = 15
             filterContainerView.addSubview($0)
@@ -142,19 +155,18 @@ class BookSearchViewController: UIViewController {
         yellowFilterView.backgroundColor = .yellow
         greenFilterView.backgroundColor = .green
         
-        // 메인 컴포넌트들을 뷰에 추가
+        // 뷰에 컴포넌트 추가
         [searchBar, filterLabel, filterContainerView, resultLabel, bookListTableView].forEach {
             view.addSubview($0)
         }
     }
-    /// 테이블뷰 초기 설정
+    
     private func setupTableView() {
         bookListTableView.delegate = self
         bookListTableView.dataSource = self
         bookListTableView.register(BookSearchCell.self, forCellReuseIdentifier: "BookSearchCell")
     }
     
-    /// UI 컴포넌트들의 제약조건 설정
     private func setupConstraints() {
         // 검색바 제약조건
         searchBar.snp.makeConstraints { make in
@@ -176,11 +188,10 @@ class BookSearchViewController: UIViewController {
             make.height.equalTo(50)
         }
         
-        // 필터 뷰들의 크기 및 간격 설정
+        // 컬러 필터 제약조건
         let filterSize = 30
         let spacing = 10
         
-        // 각 필터 뷰의 제약조건 설정
         redFilterView.snp.makeConstraints { make in
             make.centerY.equalToSuperview()
             make.leading.equalToSuperview().offset(20)
@@ -218,59 +229,81 @@ class BookSearchViewController: UIViewController {
             make.bottom.equalTo(view.safeAreaLayoutGuide).offset(-20)
         }
     }
+    
+    // MARK: - Search Methods
+    private func searchBooks(query: String) {
+        guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: "https://dapi.kakao.com/v3/search/book?query=\(encodedQuery)") else {
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = ["Authorization": "KakaoAK \(apiKey)"]
+        
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            guard let self = self,
+                  let data = data,
+                  error == nil else {
+                print("Error: \(error?.localizedDescription ?? "Unknown error")")
+                return
+            }
+            
+            do {
+                let response = try JSONDecoder().decode(BookSearchResponse.self, from: data)
+                DispatchQueue.main.async {
+                    self.books = response.documents
+                    self.bookListTableView.reloadData()
+                }
+            } catch {
+                print("Decoding error: \(error)")
+            }
+        }.resume()
+    }
 }
 
 // MARK: - UISearchBarDelegate
 extension BookSearchViewController: UISearchBarDelegate {
-    /// 검색바에서 검색 버튼이 클릭되었을 때 호출되는 메서드
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
         guard let query = searchBar.text, !query.isEmpty else { return }
         searchBar.resignFirstResponder()
-        viewModel.searchBooks(query: query)
+        searchBooks(query: query)
     }
 }
 
 // MARK: - UITableViewDelegate, UITableViewDataSource
 extension BookSearchViewController: UITableViewDelegate, UITableViewDataSource {
-    /// 테이블뷰의 행 개수를 반환하는 메서드
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return viewModel.books.count
+        return books.count
     }
     
-    /// 각 행의 셀을 구성하는 메서드
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "BookSearchCell", for: indexPath) as! BookSearchCell
-        let book = viewModel.books[indexPath.row]
+        let book = books[indexPath.row]
         cell.configure(title: book.title, price: "\(book.price)원")
         return cell
     }
     
-    /// 각 행의 높이를 반환하는 메서드
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         return 60
     }
     
-    /// 셀이 선택되었을 때 호출되는 메서드
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         let detailVC = BookDetailViewController()
-        detailVC.viewModel = BookDetailViewModel(book: viewModel.books[indexPath.row])
+        detailVC.book = books[indexPath.row]
         detailVC.modalPresentationStyle = .pageSheet
         present(detailVC, animated: true)
     }
 }
 
 // MARK: - BookSearchCell
-/// 책 검색 결과를 표시하는 테이블뷰 셀
 class BookSearchCell: UITableViewCell {
-    /// 책 제목 레이블
     private let titleLabel: UILabel = {
         let label = UILabel()
         label.font = .systemFont(ofSize: 16)
         return label
     }()
     
-    /// 책 가격 레이블
     private let priceLabel: UILabel = {
         let label = UILabel()
         label.font = .systemFont(ofSize: 14)
@@ -278,7 +311,6 @@ class BookSearchCell: UITableViewCell {
         return label
     }()
     
-    /// 셀 초기화 메서드
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         setupCell()
@@ -288,7 +320,6 @@ class BookSearchCell: UITableViewCell {
         fatalError("init(coder:) has not been implemented")
     }
     
-    /// 셀 UI 구성 메서드
     private func setupCell() {
         [titleLabel, priceLabel].forEach {
             contentView.addSubview($0)
@@ -306,10 +337,6 @@ class BookSearchCell: UITableViewCell {
         }
     }
     
-    /// 셀 데이터 구성 메서드
-    /// - Parameters:
-    ///   - title: 책 제목
-    ///   - price: 책 가격
     func configure(title: String, price: String) {
         titleLabel.text = title
         priceLabel.text = price
@@ -317,12 +344,11 @@ class BookSearchCell: UITableViewCell {
 }
 
 // MARK: - BookDetailViewController
-/// 책 상세 정보를 표시하는 뷰 컨트롤러
 class BookDetailViewController: UIViewController {
-    /// 책 상세 정보를 처리하는 뷰모델
-    var viewModel: BookDetailViewModel!
     
-    /// 책 표지 이미지를 표시하는 이미지뷰
+    // MARK: - Properties
+    var book: Book?
+    
     private let bookImageView: UIImageView = {
         let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFit
@@ -330,14 +356,12 @@ class BookDetailViewController: UIViewController {
         return imageView
     }()
     
-    /// 책 제목 레이블
     private let titleLabel: UILabel = {
         let label = UILabel()
         label.font = .systemFont(ofSize: 20, weight: .bold)
         return label
     }()
     
-    /// 책 가격 레이블
     private let priceLabel: UILabel = {
         let label = UILabel()
         label.font = .systemFont(ofSize: 16)
@@ -345,7 +369,6 @@ class BookDetailViewController: UIViewController {
         return label
     }()
     
-    /// 북마크 추가 버튼
     private let addButton: UIButton = {
         let button = UIButton()
         button.setTitle("담기", for: .normal)
@@ -354,7 +377,6 @@ class BookDetailViewController: UIViewController {
         return button
     }()
     
-    /// 닫기 버튼
     private let closeButton: UIButton = {
         let button = UIButton()
         button.setImage(UIImage(systemName: "xmark"), for: .normal)
@@ -370,7 +392,7 @@ class BookDetailViewController: UIViewController {
         updateUI()
     }
     
-    /// UI 구성 메서드
+    // MARK: - UI Configuration
     private func configureUI() {
         view.backgroundColor = .white
         
@@ -378,12 +400,6 @@ class BookDetailViewController: UIViewController {
             view.addSubview($0)
         }
         
-        // 각 UI 컴포넌트의 제약조건 설정
-        setupDetailConstraints()
-    }
-    
-    /// UI 컴포넌트들의 제약조건 설정
-    private func setupDetailConstraints() {
         closeButton.snp.makeConstraints { make in
             make.top.equalTo(view.safeAreaLayoutGuide).offset(20)
             make.leading.equalToSuperview().offset(20)
@@ -395,17 +411,16 @@ class BookDetailViewController: UIViewController {
             make.centerX.equalToSuperview()
             make.width.height.equalTo(200)
         }
-        
         titleLabel.snp.makeConstraints { make in
             make.top.equalTo(bookImageView.snp.bottom).offset(20)
             make.centerX.equalToSuperview()
         }
-        
+    
         priceLabel.snp.makeConstraints { make in
             make.top.equalTo(titleLabel.snp.bottom).offset(10)
             make.centerX.equalToSuperview()
         }
-        
+    
         addButton.snp.makeConstraints { make in
             make.bottom.equalTo(view.safeAreaLayoutGuide).offset(-20)
             make.leading.trailing.equalToSuperview().inset(20)
@@ -413,29 +428,35 @@ class BookDetailViewController: UIViewController {
         }
     }
     
-    /// 버튼 액션 설정
     private func setupActions() {
         closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
         addButton.addTarget(self, action: #selector(addTapped), for: .touchUpInside)
     }
     
-    /// UI 업데이트 메서드
     private func updateUI() {
-        titleLabel.text = viewModel.title
-        priceLabel.text = viewModel.priceText
+        guard let book = book else { return }
+        titleLabel.text = book.title
+        priceLabel.text = "\(book.price)원"
         
-        viewModel.loadImage { [weak self] image in
-            self?.bookImageView.image = image
+        // 이미지 로딩
+        if let url = URL(string: book.thumbnail) {
+            URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+                if let data = data, let image = UIImage(data: data) {
+                    DispatchQueue.main.async {
+                        self?.bookImageView.image = image
+                    }
+                }
+            }.resume()
         }
     }
     
-    /// 닫기 버튼 액션 메서드
+    // MARK: - Actions
     @objc private func closeTapped() {
         dismiss(animated: true)
     }
     
-    /// 담기 버튼 액션 메서드
     @objc private func addTapped() {
+        // 책 저장 로직 구현
         let alert = UIAlertController(title: "성공", message: "책이 저장되었습니다.", preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "확인", style: .default) { _ in
             self.dismiss(animated: true)
@@ -445,13 +466,9 @@ class BookDetailViewController: UIViewController {
 }
 
 // MARK: - BookmarkViewController
-/// 북마크된 책 목록을 표시하는 뷰 컨트롤러
 class BookmarkViewController: UIViewController {
-    // MARK: - Properties
-    /// 북마크 관련 비즈니스 로직을 처리하는 뷰모델
-    private let viewModel = BookmarkViewModel()
     
-    /// 화면 제목 레이블
+    // MARK: - Properties
     private let titleLabel: UILabel = {
         let label = UILabel()
         label.text = "담은 책"
@@ -459,7 +476,6 @@ class BookmarkViewController: UIViewController {
         return label
     }()
     
-    /// 북마크 목록을 표시하는 테이블뷰
     private let bookmarkTableView: UITableView = {
         let tableView = UITableView()
         tableView.backgroundColor = .white
@@ -478,7 +494,6 @@ class BookmarkViewController: UIViewController {
     }
     
     // MARK: - UI Configuration
-    /// UI 구성 메서드
     private func configureUI() {
         view.backgroundColor = .white
         
@@ -486,7 +501,6 @@ class BookmarkViewController: UIViewController {
             view.addSubview($0)
         }
         
-        // UI 컴포넌트들의 제약조건 설정
         titleLabel.snp.makeConstraints { make in
             make.top.equalTo(view.safeAreaLayoutGuide).offset(20)
             make.leading.equalToSuperview().offset(20)
@@ -499,7 +513,6 @@ class BookmarkViewController: UIViewController {
         }
     }
     
-    /// 테이블뷰 초기 설정
     private func setupTableView() {
         bookmarkTableView.delegate = self
         bookmarkTableView.dataSource = self
@@ -507,41 +520,32 @@ class BookmarkViewController: UIViewController {
     }
 }
 
-
-// MARK: - BookmarkViewController TableView Extension
+// MARK: - BookmarkViewController Extension
 extension BookmarkViewController: UITableViewDelegate, UITableViewDataSource {
-    /// 테이블뷰의 행 개수를 반환하는 메서드
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return viewModel.bookmarkCount
+        return 1 // 저장된 책 수에 따라 변경
     }
     
-    /// 각 행의 셀을 구성하는 메서드
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "BookSearchCell", for: indexPath) as! BookSearchCell
-        let bookmarks = viewModel.getBookmarks()
-        let book = bookmarks[indexPath.row]
-        cell.configure(title: book.title, price: "\(book.price)원")
+        cell.configure(title: "세이노의 가르침", price: "14,000원")
         return cell
     }
     
-    /// 각 행의 높이를 반환하는 메서드
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         return 60
     }
     
-    /// 셀이 선택되었을 때 호출되는 메서드
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        let bookmarks = viewModel.getBookmarks()
         let detailVC = BookDetailViewController()
-        detailVC.viewModel = BookDetailViewModel(book: bookmarks[indexPath.row])
         detailVC.modalPresentationStyle = .pageSheet
         present(detailVC, animated: true)
     }
 }
 
 // MARK: - SwiftUI Preview
-/// SwiftUI 프리뷰를 위한 설정
 #Preview {
     ViewController()
 }
+*/
