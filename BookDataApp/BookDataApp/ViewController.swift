@@ -362,6 +362,15 @@ class BookDetailViewController: UIViewController {
         return button
     }()
     
+    /// 책 설명 레이블
+    private let descriptionLabel: UILabel = {
+        let label = UILabel()
+        label.font = .systemFont(ofSize: 14)
+        label.textColor = .darkGray
+        label.numberOfLines = 0  // 여러 줄 표시 가능
+        return label
+    }()
+    
     // MARK: - Lifecycle Methods
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -374,13 +383,13 @@ class BookDetailViewController: UIViewController {
     private func configureUI() {
         view.backgroundColor = .white
         
-        [bookImageView, titleLabel, priceLabel, addButton, closeButton].forEach {
+        [bookImageView, titleLabel, priceLabel, descriptionLabel, addButton, closeButton].forEach {
             view.addSubview($0)
         }
         
-        // 각 UI 컴포넌트의 제약조건 설정
         setupDetailConstraints()
     }
+    
     
     /// UI 컴포넌트들의 제약조건 설정
     private func setupDetailConstraints() {
@@ -406,11 +415,18 @@ class BookDetailViewController: UIViewController {
             make.centerX.equalToSuperview()
         }
         
+        descriptionLabel.snp.makeConstraints { make in
+            make.top.equalTo(priceLabel.snp.bottom).offset(20)
+            make.leading.trailing.equalToSuperview().inset(20)
+        }
+        
         addButton.snp.makeConstraints { make in
+            make.top.greaterThanOrEqualTo(descriptionLabel.snp.bottom).offset(20)  // 설명과 겹치지 않도록
             make.bottom.equalTo(view.safeAreaLayoutGuide).offset(-20)
             make.leading.trailing.equalToSuperview().inset(20)
             make.height.equalTo(50)
         }
+        
     }
     
     /// 버튼 액션 설정
@@ -423,6 +439,7 @@ class BookDetailViewController: UIViewController {
     private func updateUI() {
         titleLabel.text = viewModel.title
         priceLabel.text = viewModel.priceText
+        descriptionLabel.text = viewModel.description  // 설명 업데이트
         
         viewModel.loadImage { [weak self] image in
             self?.bookImageView.image = image

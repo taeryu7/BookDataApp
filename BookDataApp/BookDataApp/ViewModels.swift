@@ -89,6 +89,11 @@ class BookDetailViewModel {
     var priceText: String {
         return "\(book.price)원"
     }
+    
+    /// 책 설명 텍스트
+    var description: String {
+        return book.contents
+    }
 }
 
 /// 북마크 화면의 비즈니스 로직을 처리하는 뷰모델
