@@ -7,6 +7,7 @@
 
 import UIKit
 import SnapKit
+import CoreData
 
 // MARK: - ViewController (TabBarController)
 /// 앱의 메인 탭바 컨트롤러
@@ -453,9 +454,11 @@ class BookDetailViewController: UIViewController {
     
     /// 담기 버튼 액션 메서드
     @objc private func addTapped() {
+        viewModel.saveBook()
+        
         let alert = UIAlertController(title: "성공", message: "책이 저장되었습니다.", preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "확인", style: .default) { _ in
-            self.dismiss(animated: true)
+        alert.addAction(UIAlertAction(title: "확인", style: .default) { [weak self] _ in
+            self?.dismiss(animated: true)
         })
         present(alert, animated: true)
     }
@@ -554,6 +557,13 @@ extension BookmarkViewController: UITableViewDelegate, UITableViewDataSource {
         detailVC.viewModel = BookDetailViewModel(book: bookmarks[indexPath.row])
         detailVC.modalPresentationStyle = .pageSheet
         present(detailVC, animated: true)
+    }
+}
+
+extension BookmarkViewController {
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        bookmarkTableView.reloadData()
     }
 }
 

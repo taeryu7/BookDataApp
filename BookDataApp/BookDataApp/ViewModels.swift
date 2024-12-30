@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import CoreData
 
 /// 책 검색 화면의 비즈니스 로직을 처리하는 뷰모델
 class BookSearchViewModel {
@@ -97,27 +98,33 @@ class BookDetailViewModel {
 }
 
 /// 북마크 화면의 비즈니스 로직을 처리하는 뷰모델
+// BookmarkViewModel을 완전히 교체
 class BookmarkViewModel {
-    /// 북마크된 책 목록
-    private var bookmarks: [Book] = []
-    /// 북마크 목록이 업데이트될 때 호출되는 클로저
+    private let coreDataManager = CoreDataManager.shared
     var onBookmarksUpdated: (() -> Void)?
     
-    /// 책을 북마크에 추가하는 메서드
-    /// - Parameter book: 추가할 책 정보
+    var bookmarkCount: Int {
+        return getBookmarks().count
+    }
+    
     func addBookmark(_ book: Book) {
-        bookmarks.append(book)
+        coreDataManager.saveBook(book)
         onBookmarksUpdated?()
     }
     
-    /// 북마크된 책 목록을 반환하는 메서드
-    /// - Returns: 북마크된 책 배열
     func getBookmarks() -> [Book] {
-        return bookmarks
+        return coreDataManager.fetchBooks()
     }
     
-    /// 북마크된 책의 개수
-    var bookmarkCount: Int {
-        return bookmarks.count
+    func removeBookmark(isbn: String) {
+        coreDataManager.deleteBook(with: isbn)
+        onBookmarksUpdated?()
+    }
+}
+
+// BookDetailViewModel에 추가
+extension BookDetailViewModel {
+    func saveBook() {
+        CoreDataManager.shared.saveBook(book)
     }
 }
