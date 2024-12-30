@@ -320,9 +320,14 @@ class BookSearchCell: UITableViewCell {
 // MARK: - BookDetailViewController
 /// 책 상세 정보를 표시하는 뷰 컨트롤러
 class BookDetailViewController: UIViewController {
+    // MARK: - Properties
     /// 책 상세 정보를 처리하는 뷰모델
     var viewModel: BookDetailViewModel!
     
+    /// 북마크 상태를 저장할 프로퍼티
+    var isBookmarked: Bool = false
+    
+    // MARK: - UI Components
     /// 책 표지 이미지를 표시하는 이미지뷰
     private let bookImageView: UIImageView = {
         let imageView = UIImageView()
@@ -335,6 +340,8 @@ class BookDetailViewController: UIViewController {
     private let titleLabel: UILabel = {
         let label = UILabel()
         label.font = .systemFont(ofSize: 20, weight: .bold)
+        label.textAlignment = .center
+        label.numberOfLines = 0
         return label
     }()
     
@@ -346,11 +353,18 @@ class BookDetailViewController: UIViewController {
         return label
     }()
     
-    /// 북마크 추가 버튼
-    private let addButton: UIButton = {
+    /// 책 설명 레이블
+    private let descriptionLabel: UILabel = {
+        let label = UILabel()
+        label.font = .systemFont(ofSize: 14)
+        label.textColor = .darkGray
+        label.numberOfLines = 0
+        return label
+    }()
+    
+    /// 북마크 추가/삭제 버튼
+    private let actionButton: UIButton = {
         let button = UIButton()
-        button.setTitle("담기", for: .normal)
-        button.backgroundColor = .systemGreen
         button.layer.cornerRadius = 8
         return button
     }()
@@ -363,37 +377,40 @@ class BookDetailViewController: UIViewController {
         return button
     }()
     
-    /// 책 설명 레이블
-    private let descriptionLabel: UILabel = {
-        let label = UILabel()
-        label.font = .systemFont(ofSize: 14)
-        label.textColor = .darkGray
-        label.numberOfLines = 0  // 여러 줄 표시 가능
-        return label
-    }()
-    
     // MARK: - Lifecycle Methods
     override func viewDidLoad() {
         super.viewDidLoad()
         configureUI()
         setupActions()
         updateUI()
+        setupActionButton()
+    }
+    
+    // MARK: - Setup Methods
+    /// 버튼 상태 설정
+    private func setupActionButton() {
+        if isBookmarked {
+            actionButton.setTitle("삭제", for: .normal)
+            actionButton.backgroundColor = .systemRed
+        } else {
+            actionButton.setTitle("담기", for: .normal)
+            actionButton.backgroundColor = .systemGreen
+        }
     }
     
     /// UI 구성 메서드
     private func configureUI() {
         view.backgroundColor = .white
         
-        [bookImageView, titleLabel, priceLabel, descriptionLabel, addButton, closeButton].forEach {
+        [bookImageView, titleLabel, priceLabel, descriptionLabel, actionButton, closeButton].forEach {
             view.addSubview($0)
         }
         
-        setupDetailConstraints()
+        setupConstraints()
     }
     
-    
     /// UI 컴포넌트들의 제약조건 설정
-    private func setupDetailConstraints() {
+    private func setupConstraints() {
         closeButton.snp.makeConstraints { make in
             make.top.equalTo(view.safeAreaLayoutGuide).offset(20)
             make.leading.equalToSuperview().offset(20)
@@ -408,6 +425,7 @@ class BookDetailViewController: UIViewController {
         
         titleLabel.snp.makeConstraints { make in
             make.top.equalTo(bookImageView.snp.bottom).offset(20)
+            make.leading.trailing.equalToSuperview().inset(20)
             make.centerX.equalToSuperview()
         }
         
@@ -421,46 +439,56 @@ class BookDetailViewController: UIViewController {
             make.leading.trailing.equalToSuperview().inset(20)
         }
         
-        addButton.snp.makeConstraints { make in
-            make.top.greaterThanOrEqualTo(descriptionLabel.snp.bottom).offset(20)  // 설명과 겹치지 않도록
+        actionButton.snp.makeConstraints { make in
+            make.top.greaterThanOrEqualTo(descriptionLabel.snp.bottom).offset(20)
             make.bottom.equalTo(view.safeAreaLayoutGuide).offset(-20)
             make.leading.trailing.equalToSuperview().inset(20)
             make.height.equalTo(50)
         }
-        
     }
     
     /// 버튼 액션 설정
     private func setupActions() {
         closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
-        addButton.addTarget(self, action: #selector(addTapped), for: .touchUpInside)
+        actionButton.addTarget(self, action: #selector(actionButtonTapped), for: .touchUpInside)
     }
     
     /// UI 업데이트 메서드
     private func updateUI() {
         titleLabel.text = viewModel.title
         priceLabel.text = viewModel.priceText
-        descriptionLabel.text = viewModel.description  // 설명 업데이트
+        descriptionLabel.text = viewModel.description
         
         viewModel.loadImage { [weak self] image in
             self?.bookImageView.image = image
         }
     }
     
+    // MARK: - Action Methods
     /// 닫기 버튼 액션 메서드
     @objc private func closeTapped() {
         dismiss(animated: true)
     }
     
-    /// 담기 버튼 액션 메서드
-    @objc private func addTapped() {
-        viewModel.saveBook()
-        
-        let alert = UIAlertController(title: "성공", message: "책이 저장되었습니다.", preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "확인", style: .default) { [weak self] _ in
-            self?.dismiss(animated: true)
-        })
-        present(alert, animated: true)
+    /// 액션 버튼 탭 처리
+    @objc private func actionButtonTapped() {
+        if isBookmarked {
+            // 삭제 로직
+            viewModel.deleteBook()
+            let alert = UIAlertController(title: "성공", message: "책이 삭제되었습니다.", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "확인", style: .default) { [weak self] _ in
+                self?.dismiss(animated: true)
+            })
+            present(alert, animated: true)
+        } else {
+            // 담기 로직
+            viewModel.saveBook()
+            let alert = UIAlertController(title: "성공", message: "책이 저장되었습니다.", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "확인", style: .default) { [weak self] _ in
+                self?.dismiss(animated: true)
+            })
+            present(alert, animated: true)
+        }
     }
 }
 
@@ -530,12 +558,10 @@ class BookmarkViewController: UIViewController {
 
 // MARK: - BookmarkViewController TableView Extension
 extension BookmarkViewController: UITableViewDelegate, UITableViewDataSource {
-    /// 테이블뷰의 행 개수를 반환하는 메서드
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return viewModel.bookmarkCount
     }
     
-    /// 각 행의 셀을 구성하는 메서드
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "BookSearchCell", for: indexPath) as! BookSearchCell
         let bookmarks = viewModel.getBookmarks()
@@ -544,17 +570,16 @@ extension BookmarkViewController: UITableViewDelegate, UITableViewDataSource {
         return cell
     }
     
-    /// 각 행의 높이를 반환하는 메서드
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         return 60
     }
     
-    /// 셀이 선택되었을 때 호출되는 메서드
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         let bookmarks = viewModel.getBookmarks()
         let detailVC = BookDetailViewController()
         detailVC.viewModel = BookDetailViewModel(book: bookmarks[indexPath.row])
+        detailVC.isBookmarked = true  // 저장된 책 탭에서 열린 상세화면임을 표시
         detailVC.modalPresentationStyle = .pageSheet
         present(detailVC, animated: true)
     }

@@ -127,4 +127,8 @@ extension BookDetailViewModel {
     func saveBook() {
         CoreDataManager.shared.saveBook(book)
     }
+    
+    func deleteBook() {
+        CoreDataManager.shared.deleteBook(with: book.isbn)
+    }
 }
