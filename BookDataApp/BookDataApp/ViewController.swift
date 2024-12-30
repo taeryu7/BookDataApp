@@ -389,10 +389,7 @@ class BookDetailViewController: UIViewController {
     // MARK: - Setup Methods
     /// 버튼 상태 설정
     private func setupActionButton() {
-        if isBookmarked {
-            actionButton.setTitle("삭제", for: .normal)
-            actionButton.backgroundColor = .systemRed
-        } else {
+        if !isBookmarked {  // 북마크되지 않은 경우(검색 탭)에만 담기 버튼 설정
             actionButton.setTitle("담기", for: .normal)
             actionButton.backgroundColor = .systemGreen
         }
@@ -402,7 +399,12 @@ class BookDetailViewController: UIViewController {
     private func configureUI() {
         view.backgroundColor = .white
         
-        [bookImageView, titleLabel, priceLabel, descriptionLabel, actionButton, closeButton].forEach {
+        // isBookmarked가 true일 때는 actionButton을 추가하지 않음
+        let components = isBookmarked ?
+            [bookImageView, titleLabel, priceLabel, descriptionLabel, closeButton] :
+            [bookImageView, titleLabel, priceLabel, descriptionLabel, actionButton, closeButton]
+        
+        components.forEach {
             view.addSubview($0)
         }
         
@@ -437,13 +439,17 @@ class BookDetailViewController: UIViewController {
         descriptionLabel.snp.makeConstraints { make in
             make.top.equalTo(priceLabel.snp.bottom).offset(20)
             make.leading.trailing.equalToSuperview().inset(20)
+            make.bottom.lessThanOrEqualTo(view.safeAreaLayoutGuide).offset(-20)  // 하단 여백 추가
         }
         
-        actionButton.snp.makeConstraints { make in
-            make.top.greaterThanOrEqualTo(descriptionLabel.snp.bottom).offset(20)
-            make.bottom.equalTo(view.safeAreaLayoutGuide).offset(-20)
-            make.leading.trailing.equalToSuperview().inset(20)
-            make.height.equalTo(50)
+        // actionButton의 제약조건은 버튼이 있을 때만 설정
+        if !isBookmarked {
+            actionButton.snp.makeConstraints { make in
+                make.top.greaterThanOrEqualTo(descriptionLabel.snp.bottom).offset(20)
+                make.bottom.equalTo(view.safeAreaLayoutGuide).offset(-20)
+                make.leading.trailing.equalToSuperview().inset(20)
+                make.height.equalTo(50)
+            }
         }
     }
     
@@ -475,8 +481,8 @@ class BookDetailViewController: UIViewController {
         if isBookmarked {
             // 삭제 로직
             viewModel.deleteBook()
-            let alert = UIAlertController(title: "성공", message: "책이 삭제되었습니다.", preferredStyle: .alert)
-            alert.addAction(UIAlertAction(title: "확인", style: .default) { [weak self] _ in
+            let alert = UIAlertController(title: "완료", message: "책이 삭제되었습니다.", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "확인", style: .cancel) { [weak self] _ in
                 self?.dismiss(animated: true)
             })
             present(alert, animated: true)
@@ -558,10 +564,12 @@ class BookmarkViewController: UIViewController {
 
 // MARK: - BookmarkViewController TableView Extension
 extension BookmarkViewController: UITableViewDelegate, UITableViewDataSource {
+    /// 테이블뷰의 행 개수를 반환하는 메서드
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return viewModel.bookmarkCount
     }
     
+    /// 각 행의 셀을 구성하는 메서드
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "BookSearchCell", for: indexPath) as! BookSearchCell
         let bookmarks = viewModel.getBookmarks()
@@ -570,10 +578,12 @@ extension BookmarkViewController: UITableViewDelegate, UITableViewDataSource {
         return cell
     }
     
+    /// 각 행의 높이를 반환하는 메서드
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         return 60
     }
     
+    /// 셀이 선택되었을 때 호출되는 메서드
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         let bookmarks = viewModel.getBookmarks()
@@ -583,7 +593,35 @@ extension BookmarkViewController: UITableViewDelegate, UITableViewDataSource {
         detailVC.modalPresentationStyle = .pageSheet
         present(detailVC, animated: true)
     }
+    
+    /// 스와이프 삭제 기능
+    func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        let deleteAction = UIContextualAction(style: .destructive, title: "삭제") { [weak self] (action, view, completion) in
+            guard let self = self else { return }
+            
+            let bookmarks = self.viewModel.getBookmarks()
+            let bookToDelete = bookmarks[indexPath.row]
+            
+            let alert = UIAlertController(title: "완료",
+                                        message: "책이 삭제되었습니다.",
+                                        preferredStyle: .alert)
+            
+            let confirmAction = UIAlertAction(title: "확인", style: .default) { _ in
+                self.viewModel.removeBookmark(isbn: bookToDelete.isbn)
+                tableView.deleteRows(at: [indexPath], with: .fade)
+            }
+            
+            alert.addAction(confirmAction)
+            self.present(alert, animated: true)
+            completion(true)
+        }
+        
+        deleteAction.backgroundColor = .systemRed
+        let configuration = UISwipeActionsConfiguration(actions: [deleteAction])
+        return configuration
+    }
 }
+
 
 extension BookmarkViewController {
     override func viewWillAppear(_ animated: Bool) {
