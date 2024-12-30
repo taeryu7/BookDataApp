@@ -513,6 +513,15 @@ class BookmarkViewController: UIViewController {
         return label
     }()
     
+    /// 전체 삭제 버튼
+    private let deleteAllButton: UIButton = {
+        let button = UIButton()
+        button.setTitle("전체삭제", for: .normal)
+        button.setTitleColor(.systemRed, for: .normal)
+        button.titleLabel?.font = .systemFont(ofSize: 16)
+        return button
+    }()
+    
     /// 북마크 목록을 표시하는 테이블뷰
     private let bookmarkTableView: UITableView = {
         let tableView = UITableView()
@@ -529,6 +538,7 @@ class BookmarkViewController: UIViewController {
         super.viewDidLoad()
         configureUI()
         setupTableView()
+        setupActions()
     }
     
     // MARK: - UI Configuration
@@ -536,7 +546,7 @@ class BookmarkViewController: UIViewController {
     private func configureUI() {
         view.backgroundColor = .white
         
-        [titleLabel, bookmarkTableView].forEach {
+        [titleLabel, deleteAllButton, bookmarkTableView].forEach {
             view.addSubview($0)
         }
         
@@ -544,6 +554,12 @@ class BookmarkViewController: UIViewController {
         titleLabel.snp.makeConstraints { make in
             make.top.equalTo(view.safeAreaLayoutGuide).offset(20)
             make.leading.equalToSuperview().offset(20)
+        }
+        
+        // 전체삭제 버튼 제약조건 추가
+        deleteAllButton.snp.makeConstraints { make in
+            make.centerY.equalTo(titleLabel)
+            make.trailing.equalToSuperview().offset(-20)
         }
         
         bookmarkTableView.snp.makeConstraints { make in
@@ -558,6 +574,45 @@ class BookmarkViewController: UIViewController {
         bookmarkTableView.delegate = self
         bookmarkTableView.dataSource = self
         bookmarkTableView.register(BookSearchCell.self, forCellReuseIdentifier: "BookSearchCell")
+    }
+    
+    // 액션 설정 메서드 추가
+    private func setupActions() {
+        deleteAllButton.addTarget(self, action: #selector(deleteAllButtonTapped), for: .touchUpInside)
+    }
+    
+    // 전체 삭제 버튼 액션
+    @objc private func deleteAllButtonTapped() {
+        // 저장된 책이 없을 경우 얼럿 표시
+        guard viewModel.bookmarkCount > 0 else {
+            let alert = UIAlertController(title: "알림", message: "저장된 책이 없습니다.", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "확인", style: .default))
+            present(alert, animated: true)
+            return
+        }
+        
+        // 삭제 확인 얼럿
+        let alert = UIAlertController(title: "전체 삭제",
+                                    message: "저장된 모든 책을 삭제하시겠습니까?",
+                                    preferredStyle: .alert)
+        
+        let deleteAction = UIAlertAction(title: "삭제", style: .destructive) { [weak self] _ in
+            self?.viewModel.deleteAllBookmarks()
+            self?.bookmarkTableView.reloadData()
+            
+            // 삭제 완료 얼럿
+            let completionAlert = UIAlertController(title: "완료",
+                                                  message: "모든 책이 삭제되었습니다.",
+                                                  preferredStyle: .alert)
+            completionAlert.addAction(UIAlertAction(title: "확인", style: .default))
+            self?.present(completionAlert, animated: true)
+        }
+        
+        let cancelAction = UIAlertAction(title: "취소", style: .cancel)
+        
+        alert.addAction(deleteAction)
+        alert.addAction(cancelAction)
+        present(alert, animated: true)
     }
 }
 

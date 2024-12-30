@@ -132,3 +132,14 @@ extension BookDetailViewModel {
         CoreDataManager.shared.deleteBook(with: book.isbn)
     }
 }
+
+// BookmarkViewModel에 추가
+extension BookmarkViewModel {
+    func deleteAllBookmarks() {
+        let bookmarks = getBookmarks()
+        bookmarks.forEach { book in
+            removeBookmark(isbn: book.isbn)
+        }
+        onBookmarksUpdated?()
+    }
+}
