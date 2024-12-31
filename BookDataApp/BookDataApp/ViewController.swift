@@ -76,11 +76,23 @@ class BookSearchViewController: UIViewController {
         return view
     }()
     
-    /// 색상 필터 뷰들
-    private let redFilterView = UIView()
-    private let orangeFilterView = UIView()
-    private let yellowFilterView = UIView()
-    private let greenFilterView = UIView()
+    // 컬렉션뷰 선언 추가
+    private let recentBooksCollectionView: UICollectionView = {
+        let layout = UICollectionViewFlowLayout()
+        layout.scrollDirection = .horizontal
+        layout.itemSize = CGSize(width: 100, height: 140)
+        layout.minimumLineSpacing = 10
+        layout.minimumInteritemSpacing = 10
+        layout.sectionInset = UIEdgeInsets(top: 0, left: 20, bottom: 0, right: 20)
+        
+        let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        collectionView.backgroundColor = .clear
+        collectionView.showsHorizontalScrollIndicator = false
+        collectionView.contentInset = .zero
+        collectionView.clipsToBounds = true
+        return collectionView
+    }()
+    
     
     /// 검색 결과 섹션 레이블
     private let resultLabel: UILabel = {
@@ -102,6 +114,11 @@ class BookSearchViewController: UIViewController {
         return tableView
     }()
     
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        viewModel.loadRecentBooks()
+    }
+    
     // MARK: - Lifecycle Methods
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -116,6 +133,7 @@ class BookSearchViewController: UIViewController {
     private func setupBindings() {
         viewModel.onBooksUpdated = { [weak self] in
             self?.bookListTableView.reloadData()
+            self?.recentBooksCollectionView.reloadData()
         }
     }
     
@@ -133,18 +151,13 @@ class BookSearchViewController: UIViewController {
     
     /// UI 컴포넌트 초기 설정
     private func setupComponents() {
-        // 필터 뷰 설정
-        [redFilterView, orangeFilterView, yellowFilterView, greenFilterView].forEach {
-            $0.layer.cornerRadius = 15
-            filterContainerView.addSubview($0)
-        }
-        redFilterView.backgroundColor = .red
-        orangeFilterView.backgroundColor = .orange
-        yellowFilterView.backgroundColor = .yellow
-        greenFilterView.backgroundColor = .green
+        // 컬렉션뷰 설정
+        recentBooksCollectionView.delegate = self
+        recentBooksCollectionView.dataSource = self
+        recentBooksCollectionView.register(RecentBookCell.self, forCellWithReuseIdentifier: RecentBookCell.identifier)
         
         // 메인 컴포넌트들을 뷰에 추가
-        [searchBar, filterLabel, filterContainerView, resultLabel, bookListTableView].forEach {
+        [searchBar, filterLabel, recentBooksCollectionView, resultLabel, bookListTableView].forEach {
             view.addSubview($0)
         }
     }
@@ -170,45 +183,16 @@ class BookSearchViewController: UIViewController {
             make.leading.equalToSuperview().offset(20)
         }
         
-        // 필터 컨테이너 제약조건
-        filterContainerView.snp.makeConstraints { make in
+        // 컬렉션뷰 제약조건
+        recentBooksCollectionView.snp.makeConstraints { make in
             make.top.equalTo(filterLabel.snp.bottom).offset(10)
             make.leading.trailing.equalToSuperview()
-            make.height.equalTo(50)
-        }
-        
-        // 필터 뷰들의 크기 및 간격 설정
-        let filterSize = 30
-        let spacing = 10
-        
-        // 각 필터 뷰의 제약조건 설정
-        redFilterView.snp.makeConstraints { make in
-            make.centerY.equalToSuperview()
-            make.leading.equalToSuperview().offset(20)
-            make.width.height.equalTo(filterSize)
-        }
-        
-        orangeFilterView.snp.makeConstraints { make in
-            make.centerY.equalToSuperview()
-            make.leading.equalTo(redFilterView.snp.trailing).offset(spacing)
-            make.width.height.equalTo(filterSize)
-        }
-        
-        yellowFilterView.snp.makeConstraints { make in
-            make.centerY.equalToSuperview()
-            make.leading.equalTo(orangeFilterView.snp.trailing).offset(spacing)
-            make.width.height.equalTo(filterSize)
-        }
-        
-        greenFilterView.snp.makeConstraints { make in
-            make.centerY.equalToSuperview()
-            make.leading.equalTo(yellowFilterView.snp.trailing).offset(spacing)
-            make.width.height.equalTo(filterSize)
+            make.height.equalTo(140)  // 책 이미지 높이
         }
         
         // 결과 레이블 제약조건
         resultLabel.snp.makeConstraints { make in
-            make.top.equalTo(filterContainerView.snp.bottom).offset(20)
+            make.top.equalTo(recentBooksCollectionView.snp.bottom).offset(20)
             make.leading.equalToSuperview().offset(20)
         }
         
@@ -218,6 +202,43 @@ class BookSearchViewController: UIViewController {
             make.leading.trailing.equalToSuperview().inset(20)
             make.bottom.equalTo(view.safeAreaLayoutGuide).offset(-20)
         }
+    }
+}
+
+// 커스텀 컬렉션뷰 셀 추가
+class RecentBookCell: UICollectionViewCell {
+    static let identifier = "RecentBookCell"
+    
+    private let imageView: UIImageView = {
+        let iv = UIImageView()
+        iv.contentMode = .scaleAspectFill
+        iv.clipsToBounds = true
+        iv.layer.cornerRadius = 8
+        iv.backgroundColor = .systemGray6
+        return iv
+    }()
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        contentView.addSubview(imageView)
+        imageView.snp.makeConstraints { make in
+            make.edges.equalToSuperview()
+        }
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    func configure(with urlString: String) {
+        guard let url = URL(string: urlString) else { return }
+        URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+            if let data = data, let image = UIImage(data: data) {
+                DispatchQueue.main.async {
+                    self?.imageView.image = image
+                }
+            }
+        }.resume()
     }
 }
 
@@ -233,12 +254,18 @@ extension BookSearchViewController: UISearchBarDelegate {
 
 // MARK: - UITableViewDelegate, UITableViewDataSource
 extension BookSearchViewController: UITableViewDelegate, UITableViewDataSource {
-    /// 테이블뷰의 행 개수를 반환하는 메서드
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return viewModel.books.count
+    func numberOfSections(in tableView: UITableView) -> Int {
+        return 1  // 검색 결과 섹션만 표시
     }
     
-    /// 각 행의 셀을 구성하는 메서드
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return viewModel.books.count  // 검색 결과만 표시
+    }
+    
+    func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+        return "검색 결과"
+    }
+    
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "BookSearchCell", for: indexPath) as! BookSearchCell
         let book = viewModel.books[indexPath.row]
@@ -246,16 +273,35 @@ extension BookSearchViewController: UITableViewDelegate, UITableViewDataSource {
         return cell
     }
     
-    /// 각 행의 높이를 반환하는 메서드
-    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 60
-    }
-    
-    /// 셀이 선택되었을 때 호출되는 메서드
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
+        
+        let book = viewModel.books[indexPath.row]
+        // 검색결과에서 책을 터치했을 때는 최근 본 책에만 추가
+        CoreDataManager.shared.saveRecentBook(book)  // 최근 본 책으로만 저장
+        
         let detailVC = BookDetailViewController()
-        detailVC.viewModel = BookDetailViewModel(book: viewModel.books[indexPath.row])
+        detailVC.viewModel = BookDetailViewModel(book: book)
+        detailVC.modalPresentationStyle = .pageSheet
+        present(detailVC, animated: true)
+    }
+}
+extension BookSearchViewController: UICollectionViewDelegate, UICollectionViewDataSource {
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return viewModel.recentBooks.count
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: RecentBookCell.identifier, for: indexPath) as! RecentBookCell
+        let book = viewModel.recentBooks[indexPath.row]
+        cell.configure(with: book.thumbnail)
+        return cell
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        let book = viewModel.recentBooks[indexPath.row]
+        let detailVC = BookDetailViewController()
+        detailVC.viewModel = BookDetailViewModel(book: book)
         detailVC.modalPresentationStyle = .pageSheet
         present(detailVC, animated: true)
     }

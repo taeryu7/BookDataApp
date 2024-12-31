@@ -9,4 +9,8 @@
         <attribute name="thumbnail" optional="YES" attributeType="String"/>
         <attribute name="title" optional="YES" attributeType="String"/>
     </entity>
+    <entity name="RecentBook" representedClassName="RecentBook" syncable="YES" codeGenerationType="class">
+        <attribute name="isbn" optional="YES" attributeType="String"/>
+        <attribute name="viewedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
 </model>

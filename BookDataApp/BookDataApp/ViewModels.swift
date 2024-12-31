@@ -14,6 +14,8 @@ class BookSearchViewModel {
     private let apiKey = "ff02cd54f624b6cfc75f5477a8eb84ed"
     /// 검색된 책 목록
     private(set) var books: [Book] = []
+    /// 최근 본 책 목록
+    private(set) var recentBooks: [Book] = []  // 이 줄 추가
     /// 책 목록이 업데이트될 때 호출되는 클로저
     var onBooksUpdated: (() -> Void)?
     
@@ -46,6 +48,15 @@ class BookSearchViewModel {
                 print("Decoding error: \(error)")
             }
         }.resume()
+    }
+    
+    func loadRecentBooks() {
+        recentBooks = CoreDataManager.shared.fetchRecentBooks()
+        onBooksUpdated?()
+    }
+    
+    var hasRecentBooks: Bool {
+        return !recentBooks.isEmpty
     }
 }
 
