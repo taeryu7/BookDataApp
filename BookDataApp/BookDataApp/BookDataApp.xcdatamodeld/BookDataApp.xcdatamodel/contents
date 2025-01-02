@@ -10,7 +10,11 @@
         <attribute name="title" optional="YES" attributeType="String"/>
     </entity>
     <entity name="RecentBook" representedClassName="RecentBook" syncable="YES" codeGenerationType="class">
+        <attribute name="contents" optional="YES" attributeType="String"/>
         <attribute name="isbn" optional="YES" attributeType="String"/>
+        <attribute name="price" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="thumbnail" optional="YES" attributeType="String"/>
+        <attribute name="title" optional="YES" attributeType="String"/>
         <attribute name="viewedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
 </model>

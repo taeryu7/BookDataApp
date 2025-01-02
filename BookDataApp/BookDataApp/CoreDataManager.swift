@@ -95,11 +95,19 @@ extension CoreDataManager {
             let results = try context.fetch(fetchRequest)
             if let existing = results.first {
                 existing.setValue(Date(), forKey: "viewedAt")
+                existing.setValue(book.thumbnail, forKey: "thumbnail")
+                existing.setValue(book.title, forKey: "title")
+                existing.setValue(book.contents, forKey: "contents")
+                existing.setValue(book.price, forKey: "price")
             } else {
                 let entity = NSEntityDescription.entity(forEntityName: "RecentBook", in: context)!
                 let recentBook = NSManagedObject(entity: entity, insertInto: context)
                 recentBook.setValue(book.isbn, forKey: "isbn")
                 recentBook.setValue(Date(), forKey: "viewedAt")
+                recentBook.setValue(book.thumbnail, forKey: "thumbnail")
+                recentBook.setValue(book.title, forKey: "title")
+                recentBook.setValue(book.contents, forKey: "contents")
+                recentBook.setValue(book.price, forKey: "price")
             }
             saveContext()
             
@@ -109,7 +117,7 @@ extension CoreDataManager {
             print("Error saving recent book: \(error)")
         }
     }
-    
+
     func fetchRecentBooks() -> [Book] {
         let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: "RecentBook")
         fetchRequest.sortDescriptors = [NSSortDescriptor(key: "viewedAt", ascending: false)]
@@ -117,25 +125,26 @@ extension CoreDataManager {
 
         do {
             let recentResults = try context.fetch(fetchRequest)
-            let isbns = recentResults.compactMap { $0.value(forKey: "isbn") as? String }
             
-            // BookEntity에서 실제 책 정보를 가져오기
-            let bookFetchRequest = NSFetchRequest<NSManagedObject>(entityName: "BookEntity")
-            
-            // RecentBook의 정보를 기반으로 책 정보 만들기
-            return recentResults.map { entity -> Book in
-                let isbn = entity.value(forKey: "isbn") as? String ?? ""
+            // 최근 본 순서대로 책 정보 매핑
+            return recentResults.compactMap { recentEntity -> Book in
+                let isbn = recentEntity.value(forKey: "isbn") as? String ?? ""
+                let thumbnail = recentEntity.value(forKey: "thumbnail") as? String ?? ""
+                let title = recentEntity.value(forKey: "title") as? String ?? ""
+                let contents = recentEntity.value(forKey: "contents") as? String ?? ""
+                let price = recentEntity.value(forKey: "price") as? Int ?? 0
+                
                 return Book(
                     authors: [],
-                    contents: "",
+                    contents: contents,
                     datetime: "",
                     isbn: isbn,
-                    price: 0,
+                    price: price,
                     publisher: "",
                     sale_price: 0,
                     status: "",
-                    thumbnail: "",
-                    title: "",
+                    thumbnail: thumbnail,
+                    title: title,
                     translators: [],
                     url: ""
                 )

@@ -132,8 +132,27 @@ class BookSearchViewController: UIViewController {
     /// 뷰모델과 뷰의 바인딩 설정
     private func setupBindings() {
         viewModel.onBooksUpdated = { [weak self] in
-            self?.bookListTableView.reloadData()
-            self?.recentBooksCollectionView.reloadData()
+            guard let self = self else { return }
+            self.bookListTableView.reloadData()
+            self.recentBooksCollectionView.reloadData()
+            
+            // 최근 본 책 섹션 표시/숨김 처리
+            let hasRecentBooks = !self.viewModel.recentBooks.isEmpty
+            self.filterLabel.isHidden = !hasRecentBooks
+            self.recentBooksCollectionView.isHidden = !hasRecentBooks
+            
+            // 결과 레이블의 제약조건 동적 업데이트
+            self.resultLabel.snp.remakeConstraints { make in
+                if hasRecentBooks {
+                    make.top.equalTo(self.recentBooksCollectionView.snp.bottom).offset(20)
+                } else {
+                    make.top.equalTo(self.searchBar.snp.bottom).offset(20)
+                }
+                make.leading.equalToSuperview().offset(20)
+            }
+            
+            // 제약조건 업데이트 적용
+            self.view.layoutIfNeeded()
         }
     }
     
@@ -172,7 +191,7 @@ class BookSearchViewController: UIViewController {
     private func setupConstraints() {
         // 검색바 제약조건
         searchBar.snp.makeConstraints { make in
-            make.top.equalTo(view.safeAreaLayoutGuide).offset(0)
+            make.top.equalTo(view.safeAreaLayoutGuide).offset(-30)
             make.leading.trailing.equalToSuperview().inset(20)
             make.height.equalTo(44)
         }
@@ -277,8 +296,9 @@ extension BookSearchViewController: UITableViewDelegate, UITableViewDataSource {
         tableView.deselectRow(at: indexPath, animated: true)
         
         let book = viewModel.books[indexPath.row]
-        // 검색결과에서 책을 터치했을 때는 최근 본 책에만 추가
-        CoreDataManager.shared.saveRecentBook(book)  // 최근 본 책으로만 저장
+        // 검색결과에서 책을 터치했을 때 최근 본 책에 추가하고 컬렉션뷰를 갱신
+        CoreDataManager.shared.saveRecentBook(book)
+        viewModel.loadRecentBooks() // 최근 본 책 목록 다시 로드
         
         let detailVC = BookDetailViewController()
         detailVC.viewModel = BookDetailViewModel(book: book)
@@ -598,7 +618,7 @@ class BookmarkViewController: UIViewController {
         
         // UI 컴포넌트들의 제약조건 설정
         titleLabel.snp.makeConstraints { make in
-            make.top.equalTo(view.safeAreaLayoutGuide).offset(20)
+            make.top.equalTo(view.safeAreaLayoutGuide).offset(-20)
             make.leading.equalToSuperview().offset(20)
         }
         
