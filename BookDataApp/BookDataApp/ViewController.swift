@@ -305,6 +305,16 @@ extension BookSearchViewController: UITableViewDelegate, UITableViewDataSource {
         detailVC.modalPresentationStyle = .pageSheet
         present(detailVC, animated: true)
     }
+    
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        let position = scrollView.contentOffset.y
+        let contentHeight = scrollView.contentSize.height
+        let screenHeight = scrollView.bounds.height
+        
+        if position > contentHeight - screenHeight - 100 {
+            viewModel.loadNextPageIfNeeded()
+        }
+    }
 }
 extension BookSearchViewController: UICollectionViewDelegate, UICollectionViewDataSource {
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {

@@ -10,53 +10,69 @@ import CoreData
 
 /// 책 검색 화면의 비즈니스 로직을 처리하는 뷰모델
 class BookSearchViewModel {
-    /// 카카오 API 키
     private let apiKey = "ff02cd54f624b6cfc75f5477a8eb84ed"
-    /// 검색된 책 목록
     private(set) var books: [Book] = []
-    /// 최근 본 책 목록
-    private(set) var recentBooks: [Book] = []  // 이 줄 추가
-    /// 책 목록이 업데이트될 때 호출되는 클로저
+    private(set) var recentBooks: [Book] = []
     var onBooksUpdated: (() -> Void)?
     
-    /// 책을 검색하는 메서드
-    /// - Parameter query: 검색어
+    // 페이지네이션을 위한 속성 추가
+    private var currentQuery = ""
+    private var currentPage = 1
+    private var isLastPage = false
+    private var isFetching = false
+    
     func searchBooks(query: String) {
-        // 검색어를 URL 인코딩하고 URL 생성
+        // 새로운 검색일 경우 기존 데이터 초기화
+        if query != currentQuery {
+            books = []
+            currentPage = 1
+            isLastPage = false
+            currentQuery = query
+        }
+        
+        guard !isFetching, !isLastPage else { return }
+        
+        fetchBooks(query: query, page: currentPage)
+    }
+    
+    private func fetchBooks(query: String, page: Int) {
         guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "https://dapi.kakao.com/v3/search/book?query=\(encodedQuery)") else {
+              let url = URL(string: "https://dapi.kakao.com/v3/search/book?query=\(encodedQuery)&page=\(page)&size=10") else {
             return
         }
         
-        // API 요청 설정
+        isFetching = true
         var request = URLRequest(url: url)
         request.allHTTPHeaderFields = ["Authorization": "KakaoAK \(apiKey)"]
         
-        // API 호출 및 응답 처리
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             guard let self = self,
                   let data = data,
-                  error == nil else { return }
+                  error == nil else {
+                self?.isFetching = false
+                return
+            }
             
             do {
                 let response = try JSONDecoder().decode(BookSearchResponse.self, from: data)
                 DispatchQueue.main.async {
-                    self.books = response.documents
+                    self.books.append(contentsOf: response.documents)
+                    self.currentPage += 1
+                    self.isLastPage = response.meta.is_end
+                    self.isFetching = false
                     self.onBooksUpdated?()
                 }
             } catch {
                 print("Decoding error: \(error)")
+                self.isFetching = false
             }
         }.resume()
     }
     
-    func loadRecentBooks() {
-        recentBooks = CoreDataManager.shared.fetchRecentBooks()
-        onBooksUpdated?()
-    }
-    
-    var hasRecentBooks: Bool {
-        return !recentBooks.isEmpty
+    // 다음 페이지 로드 메서드
+    func loadNextPageIfNeeded() {
+        guard !currentQuery.isEmpty else { return }
+        searchBooks(query: currentQuery)
     }
 }
 
@@ -130,6 +146,13 @@ class BookmarkViewModel {
     func removeBookmark(isbn: String) {
         coreDataManager.deleteBook(with: isbn)
         onBookmarksUpdated?()
+    }
+}
+
+extension BookSearchViewModel {
+    func loadRecentBooks() {
+        recentBooks = CoreDataManager.shared.fetchRecentBooks()
+        onBooksUpdated?()
     }
 }
 
